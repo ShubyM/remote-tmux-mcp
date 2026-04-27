@@ -6,9 +6,6 @@ hosts:
     default_session: agent
     remote_state_dir: ~/.cache/tmux-mcp
     tmux_socket_name: tmux-mcp
-    allowed_cwds:
-      - /tmp
-      - /home/me
     max_output_bytes: 65536
 
 defaults:

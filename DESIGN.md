@@ -42,7 +42,6 @@ The local and SSH paths use the same `remote` protocol. SSH is only the transpor
 
 - runs the official Go MCP SDK server over stdio
 - validates host ids against config
-- applies cwd and risky-command policy before `run`
 - starts one control process per host
 - translates MCP tool calls into remote protocol requests
 - keeps MCP stdout protocol-only
@@ -196,8 +195,6 @@ Important host fields:
 - `default_session`: default tmux session name
 - `remote_state_dir`: state directory on the execution machine
 - `tmux_socket_name`: optional isolated tmux socket name
-- `allowed_cwds`: cwd allowlist
-- `risky_patterns`: rejected command substrings
 - `max_output_bytes`: maximum bytes returned by output tools
 
 For `local: true`, `remote_binary` defaults to the current executable. For SSH hosts, it defaults to `~/.local/bin/remote-tmux-mcp`.
@@ -206,6 +203,8 @@ For `local: true`, `remote_binary` defaults to the current executable. For SSH h
 
 - MCP stdout is protocol-only.
 - Control process stdout is NDJSON protocol-only.
+- Configured host ids are the command-execution boundary.
+- The server does not restrict cwd paths or reject commands by pattern.
 - Shell command text is written to `cmd.sh`, not nested in SSH or tmux shell quoting.
 - Command launches use tmux windows/tabs, not split panes.
 - Managed tmux sessions use 1-based window and pane indexes.

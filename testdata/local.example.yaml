@@ -5,8 +5,6 @@ hosts:
     default_session: agent-test
     remote_state_dir: /tmp/tmux-mcp-test/state
     tmux_socket_name: tmux-test
-    allowed_cwds:
-      - /tmp
     max_output_bytes: 65536
 
 defaults:

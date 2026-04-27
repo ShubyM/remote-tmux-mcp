@@ -58,9 +58,6 @@ hosts:
     default_session: agent
     remote_state_dir: /tmp/tmux-mcp/state
     tmux_socket_name: tmux-mcp
-    allowed_cwds:
-      - /tmp
-      - /home/me
     max_output_bytes: 65536
 
 defaults:
@@ -83,9 +80,6 @@ hosts:
     default_session: agent
     remote_state_dir: ~/.cache/tmux-mcp
     tmux_socket_name: tmux-mcp
-    allowed_cwds:
-      - /home/me
-      - /tmp
     max_output_bytes: 65536
 
 defaults:
@@ -218,5 +212,5 @@ go test ./cmd/remote-tmux-mcp -run TestIntegrationRemoteOverSSH -count=1 -v
 - MCP stdout is protocol-only; logs go to stderr.
 - The `remote` control process stdout is NDJSON protocol-only; logs go to stderr.
 - Command text is written to `cmd.sh`; it is not nested inside SSH/tmux shell quoting.
-- Empty `allowed_cwds` disables cwd filtering for that host.
-- Empty `risky_patterns` disables risky-command filtering for that host.
+- Configured host ids are the security boundary. The MCP server does not restrict cwd paths or reject commands by pattern.
+- Output returned through MCP tools is bounded; full logs stay on the execution host.

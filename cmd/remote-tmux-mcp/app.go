@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -27,7 +25,7 @@ func (a *App) run(ctx context.Context, p ToolParams) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := policy(h, p.Cwd, p.Command); err != nil {
+	if err := validateRun(p); err != nil {
 		return nil, err
 	}
 	session, keep := p.Session, a.cfg.Defaults.KeepOpen
@@ -146,25 +144,12 @@ func (a *App) remoteStatus(ctx context.Context, p ToolParams) (map[string]any, e
 	return map[string]any{"connected": e == nil, "version": hello["version"], "remote_binary": h.RemoteBinary, "tmux": hello["tmux"]}, e
 }
 
-func policy(h HostConfig, cwd, command string) error {
-	if strings.TrimSpace(command) == "" {
+func validateRun(p ToolParams) error {
+	if strings.TrimSpace(p.Command) == "" {
 		return errors.New("empty_command: command is required")
 	}
-	if len(h.AllowedCwds) > 0 {
-		c := filepath.Clean(cwd)
-		ok := false
-		for _, a := range h.AllowedCwds {
-			a = filepath.Clean(a)
-			ok = ok || c == a || strings.HasPrefix(c, a+string(os.PathSeparator))
-		}
-		if !ok {
-			return errors.New("cwd_denied: cwd is outside allowed_cwds")
-		}
-	}
-	for _, p := range h.RiskyPatterns {
-		if p != "" && strings.Contains(command, p) {
-			return fmt.Errorf("risky_command: command matches risky pattern: %s", p)
-		}
+	if strings.TrimSpace(p.Cwd) == "" {
+		return errors.New("empty_cwd: cwd is required")
 	}
 	return nil
 }

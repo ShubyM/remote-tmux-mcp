@@ -10,10 +10,10 @@ import (
 	"testing"
 )
 
-func TestConfigPolicyAndProtocol(t *testing.T) {
+func TestConfigDefaultsAndProtocol(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(cfgPath, []byte("hosts:\n  local:\n    ssh_target: localhost\n    allowed_cwds: [/tmp]\n    risky_patterns: ['sudo ']\n"), 0600); err != nil {
+	if err := os.WriteFile(cfgPath, []byte("hosts:\n  local:\n    ssh_target: localhost\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, err := loadConfig(cfgPath)
@@ -24,14 +24,14 @@ func TestConfigPolicyAndProtocol(t *testing.T) {
 	if h.DefaultSession != "agent" || h.RemoteStateDir != "~/.cache/tmux-mcp" || h.RemoteBinary != "~/.local/bin/remote-tmux-mcp" || h.MaxOutputBytes != 65536 {
 		t.Fatalf("defaults not applied: %+v", h)
 	}
-	if err := policy(h, "/tmp/project", "echo ok"); err != nil {
+	if err := validateRun(ToolParams{Cwd: "/tmp/project", Command: "sudo whoami"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := policy(h, "/etc", "echo no"); err == nil || !strings.Contains(err.Error(), "cwd_denied") {
-		t.Fatalf("cwd policy error = %v", err)
+	if err := validateRun(ToolParams{Cwd: "/tmp", Command: ""}); err == nil || !strings.Contains(err.Error(), "empty_command") {
+		t.Fatalf("empty command error = %v", err)
 	}
-	if err := policy(h, "/tmp", "sudo whoami"); err == nil || !strings.Contains(err.Error(), "risky_command") {
-		t.Fatalf("risky policy error = %v", err)
+	if err := validateRun(ToolParams{Cwd: "", Command: "echo ok"}); err == nil || !strings.Contains(err.Error(), "empty_cwd") {
+		t.Fatalf("empty cwd error = %v", err)
 	}
 	req := RemoteRequest{ID: "req_1", Op: "run"}
 	req.Params, _ = json.Marshal(ToolParams{Session: "agent", Cwd: "/tmp", Command: "echo hi"})
@@ -93,7 +93,7 @@ func TestIntegrationRemoteOverSSH(t *testing.T) {
 	cfg := Config{Hosts: map[string]HostConfig{"test": {
 		SSHTarget: target, RemoteBinary: remoteBinary, BootstrapBinary: bootstrapBinary,
 		DefaultSession: "agent-remote-test", RemoteStateDir: "/tmp/tmux-remote-test/state",
-		TmuxSocketName: "tmux-remote-test", AllowedCwds: []string{"/tmp"}, MaxOutputBytes: 65536,
+		TmuxSocketName: "tmux-remote-test", MaxOutputBytes: 65536,
 	}}, Defaults: Defaults{KeepOpen: true, OutputTailLines: 200}}
 	app := &App{cfg: cfg, remote: NewRemoteClient(cfg.Hosts)}
 	defer app.remote.Close()
@@ -122,7 +122,7 @@ func TestIntegrationRemoteLocal(t *testing.T) {
 	cfg := Config{Hosts: map[string]HostConfig{"local": {
 		Local: true, RemoteBinary: remoteBinary, DefaultSession: "agent-local-test",
 		RemoteStateDir: "/tmp/tmux-local-test/state", TmuxSocketName: "tmux-local-test",
-		AllowedCwds: []string{"/tmp"}, MaxOutputBytes: 65536,
+		MaxOutputBytes: 65536,
 	}}, Defaults: Defaults{KeepOpen: true, OutputTailLines: 200}}
 	app := &App{cfg: cfg, remote: NewRemoteClient(cfg.Hosts)}
 	defer app.remote.Close()

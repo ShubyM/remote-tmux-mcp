@@ -27,9 +27,7 @@ type HostConfig struct {
 	DefaultSession  string   `json:"default_session" yaml:"default_session"`
 	RemoteStateDir  string   `json:"remote_state_dir" yaml:"remote_state_dir"`
 	TmuxSocketName  string   `json:"tmux_socket_name" yaml:"tmux_socket_name"`
-	AllowedCwds     []string `json:"allowed_cwds" yaml:"allowed_cwds"`
 	MaxOutputBytes  int      `json:"max_output_bytes" yaml:"max_output_bytes"`
-	RiskyPatterns   []string `json:"risky_patterns" yaml:"risky_patterns"`
 }
 
 func loadConfig(p string) (Config, error) {

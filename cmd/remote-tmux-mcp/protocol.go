@@ -11,7 +11,7 @@ type ToolParams struct {
 	CommandID  string `json:"command_id,omitempty" jsonschema:"command id used by the remote protocol"`
 	Session    string `json:"session,omitempty" jsonschema:"tmux session name; defaults to the host default_session"`
 	Target     string `json:"target,omitempty" jsonschema:"tmux target pane/window/session for session tools. Prefer stable pane ids like %12 from snapshot or run results"`
-	Cwd        string `json:"cwd,omitempty" jsonschema:"working directory for the command; must be allowed by host policy"`
+	Cwd        string `json:"cwd,omitempty" jsonschema:"working directory for the command"`
 	Command    string `json:"command,omitempty" jsonschema:"shell command or script text to run inside a fresh tmux window/tab. TMUX and TMUX_PANE are scrubbed; use REMOTE_TMUX_MCP_SOCKET_NAME and REMOTE_TMUX_MCP_SESSION when intentionally targeting the managed tmux server"`
 	Name       string `json:"name,omitempty" jsonschema:"short human-readable name for the command window/tab"`
 	Text       string `json:"text,omitempty" jsonschema:"literal input to send to the background command window/tab"`
