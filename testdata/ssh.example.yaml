@@ -1,0 +1,16 @@
+hosts:
+  devbox:
+    ssh_target: devbox
+    remote_binary: ~/.local/bin/remote-tmux-mcp
+    bootstrap_binary: /tmp/remote-tmux-mcp-linux-amd64
+    default_session: agent
+    remote_state_dir: ~/.cache/tmux-mcp
+    tmux_socket_name: tmux-mcp
+    allowed_cwds:
+      - /tmp
+      - /home/me
+    max_output_bytes: 65536
+
+defaults:
+  keep_open: true
+  output_tail_lines: 200

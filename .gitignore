@@ -1,0 +1,14 @@
+# Build artifacts
+/remote-tmux-mcp
+/bin/
+/dist/
+*.test
+coverage.out
+
+# Local/private test configs can contain machine names, usernames, or Tailscale IPs.
+/testdata/*.yaml
+!/testdata/*.example.yaml
+
+# Local runtime state
+/.cache/
+/.tmp/
