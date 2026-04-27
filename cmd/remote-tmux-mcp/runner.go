@@ -206,6 +206,10 @@ func writeFiles(dir string, r CommandRecord) error {
 	if e := os.WriteFile(filepath.Join(dir, "cmd.sh"), []byte(body), 0700); e != nil {
 		return e
 	}
+	return writeMeta(dir, r)
+}
+
+func writeMeta(dir string, r CommandRecord) error {
 	b, _ := json.MarshalIndent(r, "", "  ")
 	return os.WriteFile(filepath.Join(dir, "meta.json"), b, 0600)
 }

@@ -9,15 +9,16 @@ agent
   -> MCP tool call
     -> configured local or SSH host
       -> managed tmux session
-        -> one command per tmux window/tab
+        -> tmux windows/tabs, with optional reuse of idle panes
 ```
 
 The tmux session is the shared workspace. The MCP tools are the control plane.
 
 ## Defaults
 
-- Commands launch in separate tmux windows/tabs.
+- Commands launch in separate tmux windows/tabs unless `target` is set to reuse an existing pane.
 - Windows and panes are shown with 1-based indexes.
+- Agents should snapshot/capture first and avoid creating a new window for every small follow-up command.
 - Foreground commands block until completion and return exit code plus bounded output.
 - Long-running commands should use `background: true`.
 - Full output remains in the command state directory on the execution host.
@@ -47,6 +48,18 @@ Start a server or watch:
 }
 ```
 
+Reuse an existing idle shell pane:
+
+```json
+{
+  "host": "devbox",
+  "cwd": "/home/me/project",
+  "target": "%12",
+  "command": "git status --short",
+  "name": "status"
+}
+```
+
 Then inspect it with:
 
 ```text
@@ -58,7 +71,7 @@ tmux_interrupt_command
 tmux_send_input
 ```
 
-`tmux_session_snapshot` returns windows/tabs and panes with stable pane ids. `tmux_capture_pane` reads a bounded tail from one of those targets. Together they provide an invisible observation layer over the remote tmux session without turning the MCP server into a raw terminal stream.
+`tmux_session_snapshot` returns windows/tabs and panes with stable pane ids. `tmux_capture_pane` reads a bounded tail from one of those targets. Together they provide an invisible observation layer over the remote tmux session without turning the MCP server into a raw terminal stream. Use that layer to decide whether a task already has an idle shell pane worth reusing.
 
 ## Attach
 

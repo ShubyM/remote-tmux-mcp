@@ -114,7 +114,7 @@ Do not run `remote` or `run` directly for normal use. The MCP server starts thos
 
 ## Tools
 
-- `tmux_run_command`: run a command in its own tmux window/tab; blocks until done unless `background` is `true`
+- `tmux_run_command`: run a command; omitting `target` creates a new tmux window/tab, setting `target` reuses an existing pane
 - `tmux_command_status`: read command status
 - `tmux_command_output`: read bounded command output
 - `tmux_session_snapshot`: list managed tmux windows/tabs and panes
@@ -130,7 +130,9 @@ Typical flow:
 tmux_run_command
 ```
 
-`tmux_run_command` returns the command id, status, exit code, and bounded output for normal foreground commands. Use `background: true` for long-running or interactive commands; then use the returned command id with status, output, interrupt, or send-input tools. Each command run gets a separate tmux window/tab.
+`tmux_run_command` returns the command id, status, exit code, and bounded output for normal foreground commands. Use `background: true` for long-running or interactive commands; then use the returned command id with status, output, interrupt, or send-input tools.
+
+By default, a run gets a new tmux window/tab. For follow-up commands in an already-open shell, call `tmux_session_snapshot`, inspect/capture the pane, then pass that stable pane id as `target` to `tmux_run_command`. Targeted runs reuse the existing pane and still get a command id, status, exit code, and output file. When `target` is set and `keep_open` is omitted, `keep_open` defaults to `false` so the reused shell is not stacked with nested shells.
 
 For a session-level invisible observation layer, call `tmux_session_snapshot` to get stable pane ids and then `tmux_capture_pane` to read a bounded tail from a pane. This avoids opening a raw terminal stream while still observing the remote tmux session.
 

@@ -77,6 +77,17 @@ func TestMCPServerToolFlow(t *testing.T) {
 	if !strings.Contains(capture["text"].(string), "mcp-ok") {
 		t.Fatalf("capture = %+v", capture)
 	}
+	target := reusablePaneFromMap(t, snap, run["pane"].(string))
+	reuse := callTool(t, ctx, session, "tmux_run_command", map[string]any{
+		"host":    host,
+		"cwd":     cwd,
+		"target":  target,
+		"command": "printf 'mcp-reuse-ok\\n'",
+		"name":    "mcp-reuse",
+	})
+	if reuse["reused"] != true || reuse["pane"] != target || !strings.Contains(reuse["text"].(string), "mcp-reuse-ok") {
+		t.Fatalf("reuse = %+v target=%s", reuse, target)
+	}
 }
 
 func hasTool(tools *mcp.ListToolsResult, name string) bool {
@@ -116,4 +127,21 @@ func contentText(content []mcp.Content) string {
 		}
 	}
 	return strings.Join(parts, "\n")
+}
+
+func reusablePaneFromMap(t *testing.T, snap map[string]any, avoid string) string {
+	t.Helper()
+	for _, rawWindow := range snap["windows"].([]any) {
+		window := rawWindow.(map[string]any)
+		for _, rawPane := range window["panes"].([]any) {
+			pane := rawPane.(map[string]any)
+			id, _ := pane["id"].(string)
+			cmd, _ := pane["command"].(string)
+			if id != avoid && isShellCommand(cmd) {
+				return id
+			}
+		}
+	}
+	t.Fatalf("no reusable shell pane in snapshot: %+v", snap)
+	return ""
 }

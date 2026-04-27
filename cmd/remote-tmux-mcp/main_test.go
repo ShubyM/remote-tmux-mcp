@@ -161,6 +161,22 @@ func TestIntegrationRemoteLocal(t *testing.T) {
 	if err != nil || !strings.Contains(out["text"].(string), "local-ok") || !strings.Contains(run["text"].(string), "local-ok") {
 		t.Fatalf("run=%+v output=%+v err=%v", run, out, err)
 	}
+	windowsBefore := tmuxWindowCount(t, "tmux-local-test", "agent-local-test")
+	snap, err := app.snapshot(ctx, ToolParams{Host: "local"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reuseTarget := reusablePane(t, snap, run["pane"].(string))
+	reuse, err := app.run(ctx, ToolParams{Host: "local", Cwd: "/tmp", Target: reuseTarget, Command: "echo reuse-ok", Name: "reuse"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reuse["status"] != "done" || reuse["reused"] != true || reuse["pane"] != reuseTarget || !strings.Contains(reuse["text"].(string), "reuse-ok") {
+		t.Fatalf("reuse=%+v target=%s", reuse, reuseTarget)
+	}
+	if windowsAfter := tmuxWindowCount(t, "tmux-local-test", "agent-local-test"); windowsAfter != windowsBefore {
+		t.Fatalf("targeted run created a new window: before=%d after=%d", windowsBefore, windowsAfter)
+	}
 	requireOneBasedTmuxIndexes(t, "tmux-local-test", "agent-local-test")
 	t.Logf("attach: %s", run["attach"])
 }
@@ -204,5 +220,36 @@ func requireOneBasedTmuxIndexes(t *testing.T, socket, session string) {
 		if p == "0" {
 			t.Fatalf("managed session has 0-based pane index: %q", panes)
 		}
+	}
+}
+
+func tmuxWindowCount(t *testing.T, socket, session string) int {
+	t.Helper()
+	out, err := exec.Command("tmux", "-L", socket, "list-windows", "-t", session, "-F", "#{window_id}").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(strings.Fields(string(out)))
+}
+
+func reusablePane(t *testing.T, snap *SessionSnapshot, avoid string) string {
+	t.Helper()
+	for _, w := range snap.Windows {
+		for _, p := range w.Panes {
+			if p.ID != avoid && isShellCommand(p.Command) {
+				return p.ID
+			}
+		}
+	}
+	t.Fatalf("no reusable shell pane in snapshot: %+v", snap)
+	return ""
+}
+
+func isShellCommand(cmd string) bool {
+	switch cmd {
+	case "bash", "zsh", "sh", "fish", "dash", "ksh":
+		return true
+	default:
+		return false
 	}
 }

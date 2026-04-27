@@ -10,9 +10,9 @@ type ToolParams struct {
 	ID         string `json:"id,omitempty" jsonschema:"command id returned by tmux_run_command"`
 	CommandID  string `json:"command_id,omitempty" jsonschema:"command id used by the remote protocol"`
 	Session    string `json:"session,omitempty" jsonschema:"tmux session name; defaults to the host default_session"`
-	Target     string `json:"target,omitempty" jsonschema:"tmux target pane/window/session for session tools. Prefer stable pane ids like %12 from snapshot or run results"`
+	Target     string `json:"target,omitempty" jsonschema:"tmux target pane/window/session. On tmux_run_command, set this to reuse an idle existing pane instead of creating a new window. Prefer stable pane ids like %12 from snapshot or run results"`
 	Cwd        string `json:"cwd,omitempty" jsonschema:"working directory for the command"`
-	Command    string `json:"command,omitempty" jsonschema:"shell command or script text to run inside a fresh tmux window/tab. TMUX and TMUX_PANE are scrubbed; use REMOTE_TMUX_MCP_SOCKET_NAME and REMOTE_TMUX_MCP_SESSION when intentionally targeting the managed tmux server"`
+	Command    string `json:"command,omitempty" jsonschema:"shell command or script text to run inside a tmux window/tab. Omit target for a fresh window; set target to reuse an existing idle pane. TMUX and TMUX_PANE are scrubbed; use REMOTE_TMUX_MCP_SOCKET_NAME and REMOTE_TMUX_MCP_SESSION when intentionally targeting the managed tmux server"`
 	Name       string `json:"name,omitempty" jsonschema:"short human-readable name for the command window/tab"`
 	Text       string `json:"text,omitempty" jsonschema:"literal input to send to the background command window/tab"`
 	Background bool   `json:"background,omitempty" jsonschema:"set true for long-running, interactive, server, watch, REPL, or attach-style commands so the tool returns immediately with a command id"`

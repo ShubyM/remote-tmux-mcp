@@ -92,6 +92,25 @@ func (t *TmuxControl) NewWindow(ctx context.Context, s, w string, cmd []string) 
 	return pane, e
 }
 
+func (t *TmuxControl) ResolveTarget(ctx context.Context, s, target string) (string, string, error) {
+	c, e := t.ctrl(ctx, s)
+	if e != nil {
+		return "", "", e
+	}
+	if target == "" {
+		return "", "", errors.New("target is required")
+	}
+	lines, e := c.Cmd(ctx, "display-message", "-p", "-t", target, "#{pane_id}\t#{window_name}")
+	if e != nil {
+		return "", "", e
+	}
+	f := strings.SplitN(first(lines), "\t", 2)
+	if len(f) != 2 || f[0] == "" {
+		return "", "", fmt.Errorf("could not resolve tmux target %q", target)
+	}
+	return f[0], f[1], nil
+}
+
 func (t *TmuxControl) PaneExists(ctx context.Context, s, pane string) bool {
 	c, e := t.ctrl(ctx, s)
 	if e != nil {

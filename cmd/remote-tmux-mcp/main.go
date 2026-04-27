@@ -12,7 +12,7 @@ import (
 
 const version = "0.1.0"
 
-const usageHint = "Use this for shell work on configured hosts. Each command runs in its own tmux window/tab, never a split pane, and managed sessions are 1-indexed. Use background=true for servers, watches, REPLs, attach sessions, or interactive commands, then inspect or control them with status/output/interrupt/send_input. User commands do not inherit TMUX or TMUX_PANE; plain tmux targets the default tmux server. To control the managed agent tmux server from inside a command, use REMOTE_TMUX_MCP_SOCKET_NAME and REMOTE_TMUX_MCP_SESSION."
+const usageHint = "Use this for shell work on configured hosts. Omit target to create a new tmux window/tab; set target to a stable pane id from tmux_session_snapshot when an idle existing shell pane should be reused. Do not create a new window for every small follow-up command. Managed sessions are 1-indexed and command launches never create split panes. Use background=true for servers, watches, REPLs, attach sessions, or interactive commands, then inspect or control them with status/output/interrupt/send_input. User commands do not inherit TMUX or TMUX_PANE; plain tmux targets the default tmux server. To control the managed agent tmux server from inside a command, use REMOTE_TMUX_MCP_SOCKET_NAME and REMOTE_TMUX_MCP_SESSION."
 
 func main() {
 	log.SetOutput(os.Stderr)
@@ -44,7 +44,7 @@ func runMCP(args []string) int {
 	defer app.remote.Close()
 
 	s := mcp.NewServer(&mcp.Implementation{Name: "remote-tmux-mcp", Version: version}, nil)
-	addTool(s, "tmux_run_command", usageHint+" By default this blocks until completion and returns exit code plus bounded output.", app.run)
+	addTool(s, "tmux_run_command", usageHint+" By default this blocks until completion and returns exit code plus bounded output. With target set, the tracked runner is sent to that existing pane instead of allocating a new window.", app.run)
 	addTool(s, "tmux_command_status", "Read status for a command id returned by tmux_run_command, especially for background commands. "+usageHint, app.status)
 	addTool(s, "tmux_command_output", "Read bounded output for a command id returned by tmux_run_command, especially for background commands. "+usageHint, app.output)
 	addTool(s, "tmux_session_snapshot", "Return a structured snapshot of the managed tmux session: windows/tabs, panes, active flags, pane ids, current commands, and paths. Use this as the invisible observation layer before capturing or sending input to a pane. "+usageHint, app.snapshot)

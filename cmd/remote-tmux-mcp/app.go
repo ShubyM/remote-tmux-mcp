@@ -34,13 +34,21 @@ func (a *App) run(ctx context.Context, p ToolParams) (map[string]any, error) {
 	}
 	if p.KeepOpen != nil {
 		keep = *p.KeepOpen
+	} else if p.Target != "" {
+		keep = false
 	}
 	var rr map[string]string
-	if err := a.remote.Call(ctx, p.Host, "run", ToolParams{Session: session, Cwd: p.Cwd, Command: p.Command, Name: p.Name, KeepOpen: &keep}, &rr); err != nil {
+	if err := a.remote.Call(ctx, p.Host, "run", ToolParams{Session: session, Target: p.Target, Cwd: p.Cwd, Command: p.Command, Name: p.Name, KeepOpen: &keep}, &rr); err != nil {
 		return nil, err
 	}
 	id := rr["command_id"]
-	res := map[string]any{"id": id, "host": p.Host, "session": rr["session"], "window": rr["window"], "pane": rr["pane"], "status": rr["status"], "attach": attachCmd(h, rr["session"])}
+	reused := rr["reused"] == "true"
+	res := map[string]any{"id": id, "host": p.Host, "session": rr["session"], "window": rr["window"], "pane": rr["pane"], "status": rr["status"], "reused": reused, "attach": attachCmd(h, rr["session"])}
+	if reused {
+		res["mode"] = "reused_pane"
+	} else {
+		res["mode"] = "new_window"
+	}
 	if p.Background {
 		return res, nil
 	}

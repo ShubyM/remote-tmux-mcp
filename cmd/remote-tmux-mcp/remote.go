@@ -137,23 +137,64 @@ func (h *Remote) run(ctx context.Context, p ToolParams) (map[string]string, erro
 	if e := h.tmux.Ensure(ctx, p.Session); e != nil {
 		return nil, e
 	}
-	cmd := []string{h.bin, "run", "--id", id, "--session", p.Session, "--cwd", p.Cwd, "--state-dir", dir}
+	cmd := h.runnerCommand(id, p.Session, p.Cwd, dir, p.KeepOpen != nil && *p.KeepOpen)
+	if p.Target != "" {
+		return h.runInTarget(ctx, p, rec, cmd)
+	}
+	return h.runInNewWindow(ctx, p, rec, cmd)
+}
+
+func (h *Remote) runnerCommand(id, session, cwd, dir string, keepOpen bool) []string {
+	cmd := []string{h.bin, "run", "--id", id, "--session", session, "--cwd", cwd, "--state-dir", dir}
 	if h.tmux.Socket != "" {
 		cmd = append(cmd, "--tmux-socket-name", h.tmux.Socket)
 	}
-	if p.KeepOpen != nil && *p.KeepOpen {
+	if keepOpen {
 		cmd = append(cmd, "--keep-open")
 	}
+	return cmd
+}
+
+func (h *Remote) runInNewWindow(ctx context.Context, p ToolParams, rec CommandRecord, cmd []string) (map[string]string, error) {
 	pane, e := h.tmux.NewWindow(ctx, p.Session, rec.Window, cmd)
 	if e != nil {
 		return nil, e
 	}
 	rec.Pane = pane
+	if e := writeMeta(rec.RemoteDir, rec); e != nil {
+		return nil, e
+	}
 	if e := h.save(rec); e != nil {
 		return nil, e
 	}
-	h.emit(RemoteEvent{Event: "command_started", CommandID: id})
-	return map[string]string{"command_id": id, "session": p.Session, "window": rec.Window, "pane": pane, "status": "running", "remote_dir": dir}, nil
+	h.emit(RemoteEvent{Event: "command_started", CommandID: rec.ID})
+	return map[string]string{"command_id": rec.ID, "session": p.Session, "window": rec.Window, "pane": pane, "status": "running", "remote_dir": rec.RemoteDir, "reused": "false"}, nil
+}
+
+func (h *Remote) runInTarget(ctx context.Context, p ToolParams, rec CommandRecord, cmd []string) (map[string]string, error) {
+	pane, win, e := h.tmux.ResolveTarget(ctx, p.Session, p.Target)
+	if e != nil {
+		return nil, e
+	}
+	rec.Pane = pane
+	if win != "" {
+		rec.Window = win
+	}
+	if e := h.tmux.WatchPane(ctx, p.Session, pane); e != nil {
+		return nil, e
+	}
+	if e := writeMeta(rec.RemoteDir, rec); e != nil {
+		return nil, e
+	}
+	if e := h.save(rec); e != nil {
+		return nil, e
+	}
+	if e := h.tmux.Send(ctx, p.Session, pane, shellLine(cmd)+"\n"); e != nil {
+		h.drop(rec.ID)
+		return nil, e
+	}
+	h.emit(RemoteEvent{Event: "command_started", CommandID: rec.ID})
+	return map[string]string{"command_id": rec.ID, "session": p.Session, "window": rec.Window, "pane": pane, "status": "running", "remote_dir": rec.RemoteDir, "reused": "true"}, nil
 }
 
 func (h *Remote) status(ctx context.Context, id string) (CommandStatus, error) {
@@ -238,6 +279,17 @@ func (h *Remote) save(r CommandRecord) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.idx[r.ID] = r
+	return h.writeIndexLocked()
+}
+
+func (h *Remote) drop(id string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.idx, id)
+	_ = h.writeIndexLocked()
+}
+
+func (h *Remote) writeIndexLocked() error {
 	if e := os.MkdirAll(filepath.Dir(h.idxPath), 0700); e != nil {
 		return e
 	}
@@ -358,6 +410,14 @@ func cmdID(p ToolParams) string {
 		return p.CommandID
 	}
 	return p.ID
+}
+
+func shellLine(args []string) string {
+	out := make([]string, len(args))
+	for i, arg := range args {
+		out[i] = shq(arg)
+	}
+	return strings.Join(out, " ")
 }
 
 func expandRemote(p string) (string, error) {
