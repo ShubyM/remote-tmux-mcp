@@ -80,6 +80,9 @@ func (a *App) output(ctx context.Context, p ToolParams) (map[string]any, error) 
 	}
 	var out map[string]any
 	err = a.remote.Call(ctx, p.Host, "output", ToolParams{CommandID: p.ID, TailLines: p.TailLines, MaxBytes: p.MaxBytes}, &out)
+	if err != nil {
+		return nil, err
+	}
 	return map[string]any{"id": p.ID, "text": out["text"], "truncated": out["truncated"]}, err
 }
 
@@ -110,9 +113,16 @@ func (a *App) capturePane(ctx context.Context, p ToolParams) (map[string]any, er
 	if p.MaxBytes == 0 || p.MaxBytes > h.MaxOutputBytes {
 		p.MaxBytes = h.MaxOutputBytes
 	}
+	target := p.Target
+	if target == "" {
+		target = p.Session
+	}
 	var out map[string]any
 	err = a.remote.Call(ctx, p.Host, "capture_pane", ToolParams{Session: p.Session, Target: p.Target, TailLines: p.TailLines, MaxBytes: p.MaxBytes}, &out)
-	return map[string]any{"session": p.Session, "target": p.Target, "text": out["text"], "truncated": out["truncated"]}, err
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"session": p.Session, "target": target, "text": out["text"], "truncated": out["truncated"]}, err
 }
 
 func (a *App) interrupt(ctx context.Context, p ToolParams) (map[string]bool, error) {
@@ -128,10 +138,13 @@ func (a *App) sendInput(ctx context.Context, p ToolParams) (map[string]bool, err
 func (a *App) attach(ctx context.Context, p ToolParams) (map[string]string, error) {
 	_ = ctx
 	h, e := a.host(p.Host)
+	if e != nil {
+		return nil, e
+	}
 	if p.Session == "" {
 		p.Session = h.DefaultSession
 	}
-	return map[string]string{"attach": attachCmd(h, p.Session)}, e
+	return map[string]string{"attach": attachCmd(h, p.Session)}, nil
 }
 
 func (a *App) remoteStatus(ctx context.Context, p ToolParams) (map[string]any, error) {
@@ -141,6 +154,9 @@ func (a *App) remoteStatus(ctx context.Context, p ToolParams) (map[string]any, e
 	}
 	var hello map[string]string
 	e = a.remote.Call(ctx, p.Host, "hello", ToolParams{}, &hello)
+	if e != nil {
+		return map[string]any{"connected": false, "reason": e.Error(), "remote_binary": h.RemoteBinary}, nil
+	}
 	return map[string]any{"connected": e == nil, "version": hello["version"], "remote_binary": h.RemoteBinary, "tmux": hello["tmux"]}, e
 }
 

@@ -42,6 +42,10 @@ func TestConfigDefaultsAndProtocol(t *testing.T) {
 	if resp := failure("req_1", "bad", "nope"); resp.OK || resp.Error.Code != "bad" {
 		t.Fatalf("failure = %+v", resp)
 	}
+	remote := newRemote(filepath.Join(dir, "state"), "/bin/true", 1024, "")
+	if resp := remote.handle(context.Background(), RemoteRequest{ID: "req_bad", Op: "run", Params: []byte("{")}); resp.OK || resp.Error == nil || resp.Error.Code != "bad_params" {
+		t.Fatalf("bad params response = %+v", resp)
+	}
 }
 
 func TestRunnerWritesOutputAndStatus(t *testing.T) {
@@ -82,6 +86,22 @@ exit 7
 	}
 	if !strings.Contains(status.Reason, "exit status 7") {
 		t.Fatalf("reason = %q", status.Reason)
+	}
+}
+
+func TestRemoteStatusRejectsMalformedStatusFile(t *testing.T) {
+	dir := t.TempDir()
+	remote := newRemote(filepath.Join(dir, "state"), "/bin/true", 1024, "")
+	cmdDir := filepath.Join(dir, "cmd")
+	if err := os.MkdirAll(cmdDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cmdDir, "status.json"), []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	remote.idx["cmd_bad"] = CommandRecord{ID: "cmd_bad", Session: "agent", Pane: "%1", RemoteDir: cmdDir}
+	if status, err := remote.status(context.Background(), "cmd_bad"); err == nil {
+		t.Fatalf("status = %+v, expected malformed status error", status)
 	}
 }
 

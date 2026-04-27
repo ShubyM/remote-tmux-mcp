@@ -83,7 +83,10 @@ func (h *Remote) serve(ctx context.Context, r io.Reader, w io.Writer) error {
 func (h *Remote) handle(ctx context.Context, r RemoteRequest) RemoteResponse {
 	var out any
 	var e error
-	p, _ := decode[ToolParams](r)
+	p, e := decode[ToolParams](r)
+	if e != nil {
+		return failure(r.ID, "bad_params", e.Error())
+	}
 	switch r.Op {
 	case "hello":
 		var path string
@@ -124,7 +127,9 @@ func (h *Remote) run(ctx context.Context, p ToolParams) (map[string]string, erro
 	}
 	win := id + "_" + safeName(p.Name)
 	dir := filepath.Join(h.state, "commands", id)
-	_ = os.MkdirAll(dir, 0700)
+	if e := os.MkdirAll(dir, 0700); e != nil {
+		return nil, e
+	}
 	rec := CommandRecord{ID: id, Session: p.Session, Window: strings.TrimRight(win, "_"), Cwd: p.Cwd, Command: p.Command, RemoteDir: dir, CreatedAt: time.Now()}
 	if e := writeFiles(dir, rec); e != nil {
 		return nil, e
@@ -144,7 +149,9 @@ func (h *Remote) run(ctx context.Context, p ToolParams) (map[string]string, erro
 		return nil, e
 	}
 	rec.Pane = pane
-	h.save(rec)
+	if e := h.save(rec); e != nil {
+		return nil, e
+	}
 	h.emit(RemoteEvent{Event: "command_started", CommandID: id})
 	return map[string]string{"command_id": id, "session": p.Session, "window": rec.Window, "pane": pane, "status": "running", "remote_dir": dir}, nil
 }
@@ -162,6 +169,8 @@ func (h *Remote) status(ctx context.Context, id string) (CommandStatus, error) {
 		if s.Status == "done" {
 			return s, nil
 		}
+	} else if !errors.Is(e, os.ErrNotExist) {
+		return CommandStatus{}, e
 	}
 	if !h.tmux.PaneExists(ctx, rec.Session, rec.Pane) {
 		return CommandStatus{ID: id, Status: "lost", Reason: "pane missing and no final status"}, nil
@@ -225,14 +234,21 @@ func (h *Remote) sendInput(ctx context.Context, id, text string) error {
 	return h.tmux.Send(ctx, r.Session, r.Pane, text)
 }
 
-func (h *Remote) save(r CommandRecord) {
+func (h *Remote) save(r CommandRecord) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.idx[r.ID] = r
-	_ = os.MkdirAll(filepath.Dir(h.idxPath), 0700)
-	b, _ := json.MarshalIndent(h.idx, "", "  ")
-	_ = os.WriteFile(h.idxPath+".tmp", b, 0600)
-	_ = os.Rename(h.idxPath+".tmp", h.idxPath)
+	if e := os.MkdirAll(filepath.Dir(h.idxPath), 0700); e != nil {
+		return e
+	}
+	b, e := json.MarshalIndent(h.idx, "", "  ")
+	if e != nil {
+		return e
+	}
+	if e := os.WriteFile(h.idxPath+".tmp", b, 0600); e != nil {
+		return e
+	}
+	return os.Rename(h.idxPath+".tmp", h.idxPath)
 }
 
 func (h *Remote) get(id string) (CommandRecord, bool) {
