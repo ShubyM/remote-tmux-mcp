@@ -80,6 +80,9 @@ exit 7
 	if status.Status != "done" || status.ExitCode == nil || *status.ExitCode != 7 {
 		t.Fatalf("status = %+v", status)
 	}
+	if !strings.Contains(status.Reason, "exit status 7") {
+		t.Fatalf("reason = %q", status.Reason)
+	}
 }
 
 func TestIntegrationRemoteOverSSH(t *testing.T) {

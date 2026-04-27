@@ -65,7 +65,7 @@ func runnerRun(ctx context.Context, c RunnerConfig) (int, error) {
 	e = cmd.Wait()
 	stopSignals(sig)
 	code := exitCode(e)
-	if e = finish(c, code, start, nil); e != nil {
+	if e = finish(c, code, start, e); e != nil {
 		return code, e
 	}
 	if c.KeepOpen {
@@ -104,7 +104,11 @@ func finish(c RunnerConfig, code int, start string, cause error) error {
 		fmt.Fprintln(os.Stderr, cause)
 	}
 	end := now()
-	if e := writeStatus(c.StateDir, CommandStatus{ID: c.ID, Status: "done", ExitCode: &code, StartedAt: &start, FinishedAt: &end}); e != nil {
+	s := CommandStatus{ID: c.ID, Status: "done", ExitCode: &code, StartedAt: &start, FinishedAt: &end}
+	if cause != nil {
+		s.Reason = cause.Error()
+	}
+	if e := writeStatus(c.StateDir, s); e != nil {
 		return e
 	}
 	fmt.Printf("\n[tmux] done id=%s exit=%d\n", c.ID, code)
